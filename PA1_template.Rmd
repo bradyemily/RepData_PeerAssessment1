@@ -1,25 +1,94 @@
 ---
-title: "Reproducible Research: Peer Assessment 1"
-output: 
-  html_document:
-    keep_md: true
+title: "Reproducible Research - Project 1"
+author: "Emily Brady"
+date: "2/22/2021"
+output: html_document
 ---
 
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
 
-## Loading and preprocessing the data
+### Loading and Preprocessing the Data
+```{r, echo=TRUE}
+file = read.csv("activity.csv")
+file$date = as.Date(file[,2])
+data = file[complete.cases(file),]
+```
 
+### What is mean total number of steps taken per day?
+```{r, echo=TRUE}
+d1 = aggregate(list(steps=data$steps), by=list(date=data$date), FUN=sum)
 
+## Histogram of the total number of steps taken each day
+hist(d1$steps, xlab = "Steps", main = "Frequency of Steps per Day")
+## Mean
+mean(d1$steps)
+## Median
+median(d1$steps)
+```
 
-## What is mean total number of steps taken per day?
+### What is the average daily activity pattern?
+```{r, echo=TRUE}
+d2 = aggregate(list(steps=data$steps), by=list(interval=data$interval), FUN=mean)
 
+## Time Series
+plot(d2, type = "l", main = "Average Number of Steps Taken in a 5-minute Interval",
+     sub = "(Note that 500 is 5:00 AM and 1500 is 3:00 PM)")
 
+## Interval with max number of steps
+d2[d2$steps==max(d2$steps),]
+```
 
-## What is the average daily activity pattern?
+The 5-minute interval at 8:35 AM has the highest average of steps.
 
+### Imputing Missing Data
+```{r, echo=TRUE}
+sum(!complete.cases(file))
+```
 
+There are 2304 rows that are missing step data.
 
-## Imputing missing values
+```{r, echo=TRUE}
+## Impute missing values
+full = file
+n=1
+for (n in 1:nrow(full)) {
+    if (is.na(full[n,1]) == TRUE) {
+        i = full[n,3]
+        full[n,1] = round(d2[d2$interval == i,2],1)
+    }
+    n = n + 1
+}
+d3 = aggregate(list(steps=full$steps), by=list(date=full$date), FUN=sum)
 
+## Histogram of the total number of steps taken each day
+hist(d3$steps, xlab = "Steps", main = "Frequency of Steps per Day")
+## Mean
+mean(d3$steps)
+## Median
+median(d3$steps)
+```
+There is barely any change in the mean and median after the missing values are filled in. Since I used the mean number of steps per interval to fill in the missing values, the additional days have an average total number of steps, thus not affecting the mean and median. For the histogram, imputing the missing values causes there to be more days that fall into the middle bar on the x axis.
 
+### Are there differences in activity patterns between weekdays and weekends?
+```{r, echo=TRUE}
+## Create Weekday/Weekend Data
+full$Day = weekdays(full[,2])
+full$DayType = full$Day
+n=1
+for (n in 1:nrow(full)) {
+    if ((full[n,4] %in% c("Saturday","Sunday")) == TRUE) {
+        full[n,5] = "Weekend"
+    }
+    else {
+        full[n,5] = "Weekday"
+    }
+    n = n + 1
+}
+d4 = aggregate(list(steps=full$steps), by=list(interval=full$interval, DayType = full$DayType), FUN=mean)
 
-## Are there differences in activity patterns between weekdays and weekends?
+## Facet Plot
+library(ggplot2)
+ggplot(data = d4, aes(x = interval, y = steps)) + geom_line() + facet_grid(DayType~.) + theme_light()
+```
